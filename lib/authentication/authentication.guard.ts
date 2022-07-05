@@ -1,14 +1,14 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
-import { AbstractCognitoGuard } from 'nestjs-cognito';
+import { AbstractGuard } from 'nestjs-cognito';
 
 @Injectable()
-export class CognitoGuard extends AbstractCognitoGuard {
+export class AuthenticationGuard extends AbstractGuard {
   /**
    * Get the request from the context
    * @param {ExecutionContext} context - The context
    * @returns {Request} - The request
-   * @memberof CognitoGuard
+   * @memberof AuthenticationGuard
    */
   public getRequest(context: ExecutionContext): any {
     const ctx = GqlExecutionContext.create(context).getContext();

@@ -7,64 +7,18 @@
 ## Installation
 
 ```bash
-$ npm i --save @nestjs/graphql nestjs-cognito nestjs-cognito-graphql
+npm i @aws-sdk/client-cognito-identity-provider nestjs-cognito nestjs-cognito-graphql
 ```
 
 ## Configuration
 
-### Options params
-
-```ts
-/**
- * @interface CognitoModuleOptions - Options for the CognitoModule
- * @property {string} region - The region
- * @property { accessKeyId: string, secretAccessKey: string, sessionToken: string } credentials - The AWS credentials
- */
-export type CognitoModuleOptions = CognitoIdentityProviderClientConfig &
-  Required<Pick<CognitoIdentityProviderClientConfig, 'region' | 'credentials'>>;
-
-/**
- * @interface CognitoModuleOptionsFactory - Metadata for the CognitoModule
- * @property {() => Promise<CognitoModuleOptions>} createCognitoModuleOptions - A factory function to create the CognitoModuleOptions
- * @property {Type<any>[]} imports - The imports to be used by the module
- * @property {Provider[]} providers - The providers to be used by the module
- * @property {(string | Provider)[]} exports - The exports to be used by the module
- * @property {string} name - The name of the module
- */
-export interface CognitoModuleOptionsFactory {
-  createCognitoModuleOptions():
-    | Promise<CognitoModuleOptions>
-    | CognitoModuleOptions;
-}
-
-/**
- * @interface CognitoModuleAsyncOptions - Options for the CognitoModule
- * @property {Function} imports - Imports the module asyncronously
- * @property {Function} inject - Injects the module asyncronously
- * @property {CognitoModuleOptions} useFactory - The factory function to create the CognitoModuleOptions
- * @property {CognitoModuleOptions} useClass - The class to create the CognitoModuleOptions
- * @property {CognitoModuleOptions} useExisting - The existing instance of the CognitoModuleOptions
- * @property {CognitoModuleOptions}
- */
-export interface CognitoModuleAsyncOptions
-  extends Pick<ModuleMetadata, 'imports'> {
-  useExisting?: Type<CognitoModuleOptionsFactory>;
-  useClass?: Type<CognitoModuleOptionsFactory>;
-  useFactory?: (
-    ...args: any[]
-  ) => Promise<CognitoModuleOptions> | CognitoModuleOptions;
-  inject?: any[];
-  extraProviders?: Provider[];
-}
-```
-
 ### Synchronously
 
-Use `CognitoGraphQLModule.register` method with options of [CognitoModuleOptions interface](#options-params)
+Use `CognitoGraphQLModule.register` method with options of nestjs-cognito [CognitoModuleOptions interface](https://github.com/Lokicoule/nestjs-cognito#readme#options-params)
 
 ```ts
-import { Module } from '@nestjs/common';
 import { CognitoGraphQLModule } from 'nestjs-cognito-graphql';
+import { Module } from '@nestjs/common';
 
 @Module({
   imports: [
@@ -74,6 +28,7 @@ import { CognitoGraphQLModule } from 'nestjs-cognito-graphql';
         accessKeyId: 'XXXXXXXXXXXXXXXXMYFV5',
         secretAccessKey: 'jhXXXXXXxxxxxXXXXXxxxXXXXxxxxxXXXXXTXNGI',
       },
+      UserPoolId: 'eu-west-X_XXXXXXX', // Optional, but is needed by Authorization
     }),
   ],
 })
@@ -89,9 +44,9 @@ You can find more details [here](https://docs.nestjs.com/techniques/configuratio
 Here's an example:
 
 ```ts
+import { CognitoGraphQLModule } from 'nestjs-cognito';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CognitoGraphQLModule } from 'nestjs-cognito-graphql';
 
 @Module({
   imports: [
@@ -103,6 +58,7 @@ import { CognitoGraphQLModule } from 'nestjs-cognito-graphql';
           accessKeyId: configService.get<string>('COGNITO_ACCESS_KEY_ID'),
           secretAccessKey: configService.get('COGNITO_SECRET_ACCESS_KEY'),
         },
+        UserPoolId: configService.get('COGNITO_USER_POOL_ID'), // Optional, but is needed by Authorization
       }),
       inject: [ConfigService],
     }),
@@ -113,29 +69,117 @@ export class AppModule {}
 
 ## Usage
 
-```ts
-import { CognitoGuard, CurrentUser } from 'nestjs-cognito';
-import { Controller, Get, UseGuards } from '@nestjs/common';
+You can use the built-in `nestjs-cognito-graphql` decorators and guards.
 
-@Resolver()
-@UseGuards(CognitoGuard)
+### Built-in decorators and guards
+
+- Decorate the resolver with the `@Authentication` decorator or with the `@UseGuards` decorator to apply the `AuthenticationGuard` to the resolver in order to ensure that the user is authenticated.
+- Decorate the resolver with the `@Authorization` decorator or with the `@UseGuards` decorator to apply the `AuthorizationGuard` in order to ensure that the user is authorized.
+- Decorate method arguments with the `@CurrentUser` decorator to get the current user.
+
+<b>During the `authorization` process, we already check if the user is authenticated, so you don't need to use `authentication` guard or decorator.</b>
+
+In addition, you can find more details about `@UseGuards` decorator [here](https://docs.nestjs.com/guards).
+
+Here is an example that shows how to use authentication:
+
+```ts
+import { UseGuards } from '@nestjs/common';
+import { Args, Query, Resolver } from '@nestjs/graphql';
+import {
+  Authentication,
+  AuthenticationGuard,
+  CurrentUser,
+} from 'nestjs-cognito-graphql';
+import { User } from 'nestjs-cognito';
+
+@Resolver('dogs')
+@Authentication()
+export class DogsResolver {
+  @Query(() => String)
+  findAll(@CurrentUser() me: User): string {
+    return 'This action returns all my dogs';
+  }
+}
+
+@Resolver('cats')
+@UseGuards(AuthenticationGuard)
 export class CatsResolver {
   @Query(() => String)
-  findAll(@CurrentUser() me: CognitoUser): string {
+  findAll(@CurrentUser() me: User): string {
     return 'This action returns all my cats';
   }
 }
 
-@Resolver()
-export class DogsController {
+@Resolver('dogs')
+export class DogsResolver {
   @Query(() => String)
-  @UseGuards(CognitoGuard)
-  findAll(@CurrentUser() me: CognitoUser): string {
+  @UseGuards(AuthenticationGuard)
+  findAll(@CurrentUser() me: User): string {
     return 'This action returns all my dogs';
+  }
+}
+```
+
+Here is an example that shows how to use authorization:
+
+```ts
+import { UseGuards } from '@nestjs/common';
+import { Args, Query, Resolver } from '@nestjs/graphql';
+import { User } from 'nestjs-cognito';
+import {
+  Authorization,
+  AuthorizationGuard,
+  CurrentUser,
+} from 'nestjs-cognito-graphql';
+
+@Resolver('dogs')
+@Authorization({
+  allowedGroups: ['user', 'admin'],
+  requiredGroups: ['moderator'],
+  prohibitedGroups: ['visitor'],
+})
+export class DogsResolver {
+  @Query(() => String)
+  findAll(@CurrentUser() me: User): string {
+    return 'This action returns all my dogs';
+  }
+}
+
+@Resolver('cats')
+@Authorization(['user']) // allowedGroups by default
+export class CatsResolver {
+  @Query(() => String)
+  findAll(@CurrentUser() me: User): string {
+    return 'This action returns all my cats';
+  }
+}
+
+@Resolver('cats')
+@UseGuards(
+  AuthorizationGuard({
+    allowedGroups: ['user', 'admin'],
+    requiredGroups: ['moderator'],
+    prohibitedGroups: ['visitor'],
+  }),
+)
+export class CatsResolver {
+  @Query(() => String)
+  findAll(@CurrentUser() me: User): string {
+    return 'This action returns all my cats';
+  }
+}
+
+@Resolver('cats')
+export class CatsResolver {
+  @Query(() => String)
+  @UseGuards(AuthorizationGuard(['user', 'admin']))
+  findAll(@CurrentUser() me: User): string {
+    return 'This action returns all my cats';
   }
 }
 ```
 
 ## License
 
-NestJS-Cognito is [MIT licensed](LICENSE).
+NestJS-Cognito-GraphQL is [MIT licensed](LICENSE).

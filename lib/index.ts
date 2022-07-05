@@ -1,3 +1,4 @@
-export * from './cognito.module';
-export * from './decorators';
-export * from './guards';
+export * from './authentication';
+export * from './authorization';
+export * from './cognito-graphql.module';
+export * from './user';

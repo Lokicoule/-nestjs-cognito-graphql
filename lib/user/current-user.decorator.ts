@@ -1,6 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
-import { CognitoUser, COGNITO_USER_CONTEXT_PROPERTY } from 'nestjs-cognito';
+import { User, COGNITO_USER_CONTEXT_PROPERTY } from 'nestjs-cognito';
 
 /**
  * Decorator that can be used to inject the current user into a resolver.
@@ -8,7 +8,7 @@ import { CognitoUser, COGNITO_USER_CONTEXT_PROPERTY } from 'nestjs-cognito';
  * @returns {(target: object, key: string | symbol, descriptor: TypedPropertyDescriptor<any>) => any}
  */
 export const CurrentUser = createParamDecorator(
-  (data: unknown, context: ExecutionContext): CognitoUser => {
+  (data: unknown, context: ExecutionContext): User => {
     const ctx = GqlExecutionContext.create(context);
     return ctx.getContext().req[COGNITO_USER_CONTEXT_PROPERTY];
   },
