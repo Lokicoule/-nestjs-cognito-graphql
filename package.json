@@ -22,7 +22,8 @@
     "prepublish:next": "npm run build",
     "publish:next": "npm publish --access public --tag next",
     "prerelease": "npm run build",
-    "release": "release-it"
+    "release": "release-it",
+    "test": "jest"
   },
   "peerDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.105.0",
@@ -67,6 +68,23 @@
     "ts-node": "^10.0.0",
     "tsconfig-paths": "^3.10.1",
     "typescript": "^4.3.5"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "./coverage",
+    "testEnvironment": "node"
   },
   "lint-staged": {
     "*.ts": [
